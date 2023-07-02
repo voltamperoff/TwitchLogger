@@ -28,6 +28,8 @@ namespace TwitchLogger
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<Channel>().ToTable("channels");
+            modelBuilder.Entity<User>().ToTable("users");
+            modelBuilder.Entity<Message>().ToTable("messages"); 
 
             modelBuilder.Entity<Channel>()
                 .HasMany(c => c.Users)
@@ -35,12 +37,14 @@ namespace TwitchLogger
                 .UsingEntity(j => j.ToTable("channels_to_users"));
 
             modelBuilder.Entity<Message>()
-                .HasOne(m => m.Channel)
-                .WithMany();
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(m => m.UserId);
 
             modelBuilder.Entity<Message>()
-                .HasOne(m => m.User)
-                .WithOne();
+                .HasOne<Channel>()
+                .WithMany()
+                .HasForeignKey(m => m.ChannelId);
         }
 
         public DbSet<Channel> Channels { get; set; }

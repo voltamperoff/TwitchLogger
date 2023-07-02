@@ -3,8 +3,8 @@
     internal class Message
     {
         public int Id { get; set; }
-        public Channel Channel { get; set; } = new();
-        public User User { get; set; } = new();
+        public int ChannelId { get; set; }
+        public int UserId { get; set; }
         public DateTime Timestamp { get; set; } = DateTime.Now;
         public string Text { get; set; } = String.Empty;
     }
