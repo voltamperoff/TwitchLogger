@@ -1,6 +1,6 @@
 ﻿using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
-using TwitchLogger.Models;
+using TwitchLogger.Models.Database;
 
 namespace TwitchLogger
 {
@@ -29,22 +29,10 @@ namespace TwitchLogger
         {
             modelBuilder.Entity<Channel>().ToTable("channels");
             modelBuilder.Entity<User>().ToTable("users");
-            modelBuilder.Entity<Message>().ToTable("messages"); 
+            modelBuilder.Entity<Message>().ToTable("messages");
 
-            modelBuilder.Entity<Channel>()
-                .HasMany(c => c.Users)
-                .WithMany(u => u.Channels)
-                .UsingEntity(j => j.ToTable("channels_to_users"));
-
-            modelBuilder.Entity<Message>()
-                .HasOne<User>()
-                .WithMany()
-                .HasForeignKey(m => m.UserId);
-
-            modelBuilder.Entity<Message>()
-                .HasOne<Channel>()
-                .WithMany()
-                .HasForeignKey(m => m.ChannelId);
+            modelBuilder.Entity<Channel>().HasIndex(c => c.Name).IsUnique();
+            modelBuilder.Entity<User>().HasIndex(u => u.Name).IsUnique();
         }
 
         public DbSet<Channel> Channels { get; set; }
