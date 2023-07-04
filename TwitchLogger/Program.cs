@@ -14,46 +14,40 @@ namespace TwitchLogger
         static Program()
         {
             settings = Settings.Load("settings.json");
+
+            using var context = new Context(settings.DatabasePath);
+            context.Database.EnsureCreated();
         }
 
         #region Event handlers
-        private static void ChannelJoined(object? sender, OnJoinedChannelArgs e)
-        {
-            Task.Run(() =>
-            {
-                using var context = new Context(settings.DatabasePath);
-
-                if (!context.Channels.Any(c => c.Name == e.Channel))
-                {
-                    var channel = new Models.Database.Channel()
-                    {
-                        Name = e.Channel
-                    };
-
-                    context.Channels.Add(channel);
-
-                    context.SaveChanges();
-                }
-            });
-        }
-
         private static void UserJoined(object? sender, OnUserJoinedArgs e)
         {
+            Console.WriteLine($"{e.Username} joined channel {e.Channel}");
+
             Task.Run(() =>
             {
                 using var context = new Context(settings.DatabasePath);
 
-                if (!context.Users.Any(u => u.Name == e.Username))
+                if (context.Membership.Any(m => m.Channel.Name == e.Channel && m.User.Name == e.Username))
                 {
-                    var user = new Models.Database.User()
-                    {
-                        Name = e.Username
-                    };
-
-                    context.Users.Add(user);
-
-                    context.SaveChanges();
+                    return;
                 }
+
+                var channel = context.Channels.Where(c => c.Name == e.Channel).FirstOrDefault();
+                channel ??= new Channel() { Name = e.Channel };
+
+                var user = context.Users.Where(u => u.Name == e.Username).FirstOrDefault();
+                user ??= new User() { Name = e.Username };
+
+                var membership = new Models.Database.Membership()
+                {
+                    Channel = channel,
+                    User = user
+                };
+
+                context.Membership.Add(membership);
+
+                context.SaveChanges();
             });
         }
 
@@ -83,27 +77,29 @@ namespace TwitchLogger
         }
         #endregion
 
-        static void Main(string[] args)
+        private static List<string> GetChannels()
         {
             using var context = new Context(settings.DatabasePath);
-            context.Database.EnsureCreated();
 
+            return context.Channels.Select(c => c.Name).ToList();
+        }
+
+        static void Main(string[] args)
+        {
             var chat = new TwitchClient(new WebSocketClient());
             var cred = new ConnectionCredentials(settings.TwitchUsername, settings.OAuthToken);
 
-            chat.OnJoinedChannel += ChannelJoined;
             chat.OnUserJoined += UserJoined;
             chat.OnMessageReceived += MessageReceived;
 
-            chat.OnLog += (s, e) => Console.WriteLine(e.Data);
-            chat.OnConnected += (s, e) => Console.WriteLine("CONNECTED. Press Enter");
+            chat.OnConnected += (_, _) => Console.WriteLine("Connected...");
 
             chat.Initialize(cred);
             chat.Connect();
 
-            foreach (var channel in context.Channels.ToList())
+            foreach (var channel in GetChannels())
             {
-                chat.JoinChannel(channel.Name);
+                chat.JoinChannel(channel);
             }
 
             bool run = true;

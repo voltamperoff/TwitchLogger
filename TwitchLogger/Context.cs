@@ -30,13 +30,20 @@ namespace TwitchLogger
             modelBuilder.Entity<Channel>().ToTable("channels");
             modelBuilder.Entity<User>().ToTable("users");
             modelBuilder.Entity<Message>().ToTable("messages");
+            modelBuilder.Entity<Membership>().ToTable("membership");
 
             modelBuilder.Entity<Channel>().HasIndex(c => c.Name).IsUnique();
             modelBuilder.Entity<User>().HasIndex(u => u.Name).IsUnique();
+
+            modelBuilder.Entity<Channel>()
+                .HasMany(c => c.Users)
+                .WithMany(u => u.Channels)
+                .UsingEntity<Membership>();
         }
 
         public DbSet<Channel> Channels { get; set; }
         public DbSet<User> Users { get; set; }
         public DbSet<Message> Messages { get; set; }
+        public DbSet<Membership> Membership { get; set; }
     }
 }
