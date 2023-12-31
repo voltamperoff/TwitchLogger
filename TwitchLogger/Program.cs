@@ -9,22 +9,14 @@ namespace TwitchLogger
 {
     internal class Program
     {
-        private static readonly Settings settings;
-
-        static Program()
-        {
-            settings = Settings.Load("settings.json");
-
-            using var context = new Context(settings.DatabasePath);
-            context.Database.EnsureCreated();
-        }
+        private static readonly Settings settings = SettingsProvider.Load("settings.json");
 
         #region Event handlers
-        private static void UserJoined(object? sender, OnUserJoinedArgs e)
+        private static Task UserJoinedAsync(object? sender, OnUserJoinedArgs e)
         {
             Console.WriteLine($"{e.Username} joined channel {e.Channel}");
 
-            Task.Run(() =>
+            return Task.Run(() =>
             {
                 using var context = new Context(settings.DatabasePath);
 
@@ -51,9 +43,9 @@ namespace TwitchLogger
             });
         }
 
-        private static void MessageReceived(object? sender, OnMessageReceivedArgs e)
+        private static Task MessageReceivedAsync(object? sender, OnMessageReceivedArgs e)
         {
-            Task.Run(() =>
+            return Task.Run(() =>
             {
                 using var context = new Context(settings.DatabasePath);
 
@@ -77,27 +69,44 @@ namespace TwitchLogger
         }
         #endregion
 
-        private static List<string> GetChannels()
+        private static Task ShowUserMembershipAsync(string username)
         {
-            using var context = new Context(settings.DatabasePath);
+            return Task.Run(() =>
+            {
+                using var context = new Context(settings.DatabasePath);
 
-            return context.Channels.Select(c => c.Name).ToList();
+                var user = context.Users.Where(u => u.Name.Contains(username)).FirstOrDefault();
+
+                if (user == null)
+                {
+                    Console.WriteLine($"User \"{username}\" not found");
+
+                    return;
+                }
+
+                var channels = context
+                    .Membership.Where(m => m.User == user)
+                    .Join(context.Channels, m => m.Channel, c => c, (m, c) => c.Name);
+
+                Console.WriteLine($"{user.Name}: [{String.Join(", ", channels)}]");
+            });
         }
 
-        static void Main(string[] args)
+        static async Task Main(string[] args)
         {
+            using var context = new Context(settings.DatabasePath);
+            context.Database.EnsureCreated();
+
             var chat = new TwitchClient(new WebSocketClient());
             var cred = new ConnectionCredentials(settings.TwitchUsername, settings.OAuthToken);
 
-            chat.OnUserJoined += UserJoined;
-            chat.OnMessageReceived += MessageReceived;
-
-            chat.OnConnected += (_, _) => Console.WriteLine("Connected...");
+            chat.OnUserJoined += async (s, e) => await UserJoinedAsync(s, e);
+            chat.OnMessageReceived += async (s, e) => await MessageReceivedAsync(s, e);
 
             chat.Initialize(cred);
             chat.Connect();
 
-            foreach (var channel in GetChannels())
+            foreach (var channel in context.Channels.Select(c => c.Name))
             {
                 chat.JoinChannel(channel);
             }
@@ -111,6 +120,11 @@ namespace TwitchLogger
                 if (!String.IsNullOrEmpty(input) && input.StartsWith("join"))
                 {
                     chat.JoinChannel(input.Split()[1].Trim());
+                }
+
+                if (!String.IsNullOrEmpty(input) && input.StartsWith("member"))
+                {
+                    await ShowUserMembershipAsync(input.Split()[1].Trim());
                 }
 
                 if (input == "stop")
