@@ -22,3 +22,15 @@ The application uses SQLite database for data storage and tracks next entities:
   - UserId (FK to Users)
   - Timestamp (datetime)
   - Message (string) - Twitch chat message
+
+## Usage
+---
+Add configuration file "settings.json" to the program directory with following content:
+
+    {
+	    "TwitchUsername": "account_name_of_the_logger",
+	    "OAuthToken": "oauth:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+	    "DatabasePath": "path/to/twitch.sqlite"
+    }
+
+On start of the program the database file will be created empty, to start tracking a channel and add it to the database type "join channel_name" in the program console.
