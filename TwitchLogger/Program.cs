@@ -10,9 +10,10 @@ namespace TwitchLogger
     internal class Program
     {
         private static readonly Settings settings = SettingsProvider.Load("settings.json");
+        private static readonly CancellationTokenSource cancellationTokenSource = new();
 
         #region Event handlers
-        private static Task UserJoinedAsync(object? sender, OnUserJoinedArgs e)
+        private static Task UserJoinedAsync(OnUserJoinedArgs e, CancellationToken token)
         {
             Console.WriteLine($"{e.Username} joined channel {e.Channel}");
 
@@ -40,10 +41,10 @@ namespace TwitchLogger
                 context.Membership.Add(membership);
 
                 context.SaveChanges();
-            });
+            }, token);
         }
 
-        private static Task MessageReceivedAsync(object? sender, OnMessageReceivedArgs e)
+        private static Task MessageReceivedAsync(OnMessageReceivedArgs e, CancellationToken token)
         {
             return Task.Run(() =>
             {
@@ -65,11 +66,11 @@ namespace TwitchLogger
                 context.Messages.Add(message);
 
                 context.SaveChanges();
-            });
+            }, token);
         }
         #endregion
 
-        private static Task ShowUserMembershipAsync(string username)
+        private static Task ShowUserMembershipAsync(string username, CancellationToken token)
         {
             return Task.Run(() =>
             {
@@ -89,19 +90,21 @@ namespace TwitchLogger
                     .Join(context.Channels, m => m.Channel, c => c, (m, c) => c.Name);
 
                 Console.WriteLine($"{user.Name}: [{String.Join(", ", channels)}]");
-            });
+            }, token);
         }
 
         static async Task Main(string[] args)
         {
+            var token = cancellationTokenSource.Token;
+
             using var context = new Context(settings.DatabasePath);
             context.Database.EnsureCreated();
 
             var chat = new TwitchClient(new WebSocketClient());
             var cred = new ConnectionCredentials(settings.TwitchUsername, settings.OAuthToken);
 
-            chat.OnUserJoined += async (s, e) => await UserJoinedAsync(s, e);
-            chat.OnMessageReceived += async (s, e) => await MessageReceivedAsync(s, e);
+            chat.OnUserJoined += async (_, e) => await UserJoinedAsync(e, token);
+            chat.OnMessageReceived += async (_, e) => await MessageReceivedAsync(e, token);
 
             chat.Initialize(cred);
             chat.Connect();
@@ -111,9 +114,7 @@ namespace TwitchLogger
                 chat.JoinChannel(channel);
             }
 
-            bool run = true;
-
-            while (run)
+            while (!token.IsCancellationRequested)
             {
                 var input = Console.ReadLine();
 
@@ -124,12 +125,12 @@ namespace TwitchLogger
 
                 if (!String.IsNullOrEmpty(input) && input.StartsWith("member"))
                 {
-                    await ShowUserMembershipAsync(input.Split()[1].Trim());
+                    await ShowUserMembershipAsync(input.Split()[1].Trim(), token);
                 }
 
                 if (input == "stop")
                 {
-                    run = false;
+                    cancellationTokenSource.Cancel();
                 }
             }
 
