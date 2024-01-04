@@ -6,7 +6,7 @@ namespace TwitchLogger
 {
     internal class Context : DbContext
     {
-        private readonly string path;
+        public string Path { get; init; }
 
         public Context(string path)
         {
@@ -15,12 +15,12 @@ namespace TwitchLogger
                 throw new ArgumentNullException(nameof(path), "Database path must be specified");
             }
 
-            this.path = path;
+            Path = path;
         }
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-            var stringBuilder = new SqliteConnectionStringBuilder() { DataSource = path };
+            var stringBuilder = new SqliteConnectionStringBuilder() { DataSource = Path };
 
             optionsBuilder.UseSqlite(stringBuilder.ConnectionString);
         }

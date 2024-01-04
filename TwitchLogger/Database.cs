@@ -9,11 +9,6 @@ namespace TwitchLogger
 
         public Database(string path)
         {
-            if (String.IsNullOrWhiteSpace(path))
-            {
-                throw new ArgumentException("Database path is not specified", nameof(path));
-            }
-
             Path = path;
 
             using var context = new Context(Path);
