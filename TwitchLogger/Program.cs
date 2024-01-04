@@ -19,13 +19,13 @@ namespace TwitchLogger
             var chat = new TwitchClient(new WebSocketClient());
             var cred = new ConnectionCredentials(settings.TwitchUsername, settings.OAuthToken);
 
-            chat.OnUserJoined += async (_, e) => await db.UserJoinedAsync(e, token);
-            chat.OnMessageReceived += async (_, e) => await db.MessageReceivedAsync(e, token);
+            chat.OnUserJoined += async (_, e) => await db.LogUserMembershipAsync(e, token);
+            chat.OnMessageReceived += async (_, e) => await db.LogChatMessageAsync(e, token);
 
             chat.Initialize(cred);
             chat.Connect();
 
-            foreach (var channel in await db.GetChannelsAsync(token))
+            foreach (var channel in await db.GetTrackedChannelsAsync(token))
             {
                 chat.JoinChannel(channel);
             }

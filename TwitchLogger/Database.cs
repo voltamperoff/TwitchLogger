@@ -16,7 +16,7 @@ namespace TwitchLogger
             context.Database.EnsureCreated();
         }
 
-        public Task UserJoinedAsync(OnUserJoinedArgs e, CancellationToken token)
+        public Task LogUserMembershipAsync(OnUserJoinedArgs e, CancellationToken token)
         {
             return Task.Run(() =>
             {
@@ -33,7 +33,7 @@ namespace TwitchLogger
                 var user = context.Users.Where(u => u.Name == e.Username).FirstOrDefault();
                 user ??= new User() { Name = e.Username };
 
-                var membership = new Models.Database.Membership()
+                var membership = new Membership()
                 {
                     Channel = channel,
                     User = user
@@ -45,7 +45,7 @@ namespace TwitchLogger
             }, token);
         }
 
-        public Task MessageReceivedAsync(OnMessageReceivedArgs e, CancellationToken token)
+        public Task LogChatMessageAsync(OnMessageReceivedArgs e, CancellationToken token)
         {
             return Task.Run(() =>
             {
@@ -57,7 +57,7 @@ namespace TwitchLogger
                 var user = context.Users.Where(u => u.Name == e.ChatMessage.Username).FirstOrDefault();
                 user ??= new User() { Name = e.ChatMessage.Username };
 
-                var message = new Models.Database.Message()
+                var message = new Message()
                 {
                     Channel = channel,
                     User = user,
@@ -70,8 +70,44 @@ namespace TwitchLogger
             }, token);
         }
 
-        #region Getters
-        public Task<IEnumerable<string>> GetChannelsAsync(CancellationToken token)
+        #region Channels
+        public Task TrackChannelAsync(string name, CancellationToken token)
+        {
+            return Task.Run(() =>
+            {
+                using var context = new Context(Path);
+
+                var channel = context.Channels.Where(c => c.Name == name).FirstOrDefault();
+
+                if (channel == null)
+                {
+                    context.Channels.Add(new() { Name = name });
+                }
+
+                context.Channels.Where(c => c.Name == name).FirstOrDefault()!.Track = true;
+
+                context.SaveChanges();
+            }, token);
+        }
+
+        public Task UntrackChannelAsync(string name, CancellationToken token)
+        {
+            return Task.Run(() =>
+            {
+                using var context = new Context(Path);
+
+                var channel = context.Channels.Where(c => c.Name == name).FirstOrDefault();
+
+                if (channel != null)
+                {
+                    channel.Track = false;
+                }
+
+                context.SaveChanges();
+            }, token);
+        }
+
+        public Task<IEnumerable<string>> GetTrackedChannelsAsync(CancellationToken token)
         {
             return Task.Run<IEnumerable<string>>(() =>
             {
@@ -79,11 +115,14 @@ namespace TwitchLogger
 
                 return context
                     .Channels
+                    .Where(c => c.Track == true)
                     .Select(c => c.Name)
                     .ToList();
             }, token);
         }
+        #endregion
 
+        #region User membership
         public Task<IEnumerable<string>> GetUserChannelsAsync(string username, CancellationToken token)
         {
             return Task.Run<IEnumerable<string>>(() =>
