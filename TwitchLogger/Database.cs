@@ -16,6 +16,7 @@ namespace TwitchLogger
             context.Database.EnsureCreated();
         }
 
+        #region Logging
         public Task LogUserMembershipAsync(OnUserJoinedArgs e, CancellationToken token)
         {
             return Task.Run(() =>
@@ -69,6 +70,7 @@ namespace TwitchLogger
                 context.SaveChanges();
             }, token);
         }
+        #endregion
 
         #region Channels
         public Task TrackChannelAsync(string name, CancellationToken token)

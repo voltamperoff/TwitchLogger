@@ -34,19 +34,51 @@ namespace TwitchLogger
             {
                 var input = Console.ReadLine();
 
-                if (!String.IsNullOrEmpty(input) && input.StartsWith("join"))
+                try
                 {
-                    chat.JoinChannel(input.Split()[1].Trim());
-                }
+                    if (!String.IsNullOrEmpty(input) && input.StartsWith("join"))
+                    {
+                        var name = input.Split()[1].Trim();
 
-                if (!String.IsNullOrEmpty(input) && input.StartsWith("member"))
-                {
-                    Console.WriteLine(String.Join(", ", await db.GetUserChannelsAsync(input.Split()[1].Trim(), token)));
-                }
+                        if (String.IsNullOrWhiteSpace(name)) throw new Exception("Channel name must be specified");
 
-                if (input == "stop")
+                        await db.TrackChannelAsync(name, token);
+                        chat.JoinChannel(name);
+
+                        continue;
+                    }
+
+                    if (!String.IsNullOrEmpty(input) && input.StartsWith("leave"))
+                    {
+                        var name = input.Split()[1].Trim();
+
+                        if (String.IsNullOrWhiteSpace(name)) throw new Exception("Channel name must be specified");
+
+                        await db.UntrackChannelAsync(name, token);
+                        chat.LeaveChannel(name);
+
+                        continue;
+                    }
+
+                    if (!String.IsNullOrEmpty(input) && input.StartsWith("member"))
+                    {
+                        var name = input.Split()[1].Trim();
+
+                        if (String.IsNullOrWhiteSpace(name)) throw new Exception("User name must be specified");
+
+                        Console.WriteLine(String.Join(", ", await db.GetUserChannelsAsync(name, token)));
+
+                        continue;
+                    }
+
+                    if (input == "stop")
+                    {
+                        cancellationTokenSource.Cancel();
+                    }
+                }
+                catch(Exception e)
                 {
-                    cancellationTokenSource.Cancel();
+                    Console.WriteLine(e.Message);
                 }
             }
 
