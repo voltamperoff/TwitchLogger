@@ -17,96 +17,82 @@ namespace TwitchLogger
         }
 
         #region Logging
-        public Task LogUserMembershipAsync(OnUserJoinedArgs e, CancellationToken token)
+        public async Task LogUserMembershipAsync(OnUserJoinedArgs e, CancellationToken token)
         {
-            return Task.Run(() =>
+            using var context = new Context(Path);
+
+            if (context.Membership.Any(m => m.Channel.Name == e.Channel && m.User.Name == e.Username))
             {
-                using var context = new Context(Path);
+                return;
+            }
 
-                if (context.Membership.Any(m => m.Channel.Name == e.Channel && m.User.Name == e.Username))
-                {
-                    return;
-                }
+            var channel = context.Channels.Where(c => c.Name == e.Channel).FirstOrDefault();
+            channel ??= new Channel() { Name = e.Channel };
 
-                var channel = context.Channels.Where(c => c.Name == e.Channel).FirstOrDefault();
-                channel ??= new Channel() { Name = e.Channel };
+            var user = context.Users.Where(u => u.Name == e.Username).FirstOrDefault();
+            user ??= new User() { Name = e.Username };
 
-                var user = context.Users.Where(u => u.Name == e.Username).FirstOrDefault();
-                user ??= new User() { Name = e.Username };
+            var membership = new Membership()
+            {
+                Channel = channel,
+                User = user
+            };
 
-                var membership = new Membership()
-                {
-                    Channel = channel,
-                    User = user
-                };
-
-                context.Membership.Add(membership);
-
-                context.SaveChanges();
-            }, token);
+            await context.Membership.AddAsync(membership, token);
+            await context.SaveChangesAsync(token);
         }
 
-        public Task LogChatMessageAsync(OnMessageReceivedArgs e, CancellationToken token)
+        public async Task LogChatMessageAsync(OnMessageReceivedArgs e, CancellationToken token)
         {
-            return Task.Run(() =>
+            using var context = new Context(Path);
+
+            var channel = context.Channels.Where(c => c.Name == e.ChatMessage.Channel).FirstOrDefault();
+            channel ??= new Channel() { Name = e.ChatMessage.Channel };
+
+            var user = context.Users.Where(u => u.Name == e.ChatMessage.Username).FirstOrDefault();
+            user ??= new User() { Name = e.ChatMessage.Username };
+
+            var message = new Message()
             {
-                using var context = new Context(Path);
+                Channel = channel,
+                User = user,
+                Text = e.ChatMessage.Message
+            };
 
-                var channel = context.Channels.Where(c => c.Name == e.ChatMessage.Channel).FirstOrDefault();
-                channel ??= new Channel() { Name = e.ChatMessage.Channel };
-
-                var user = context.Users.Where(u => u.Name == e.ChatMessage.Username).FirstOrDefault();
-                user ??= new User() { Name = e.ChatMessage.Username };
-
-                var message = new Message()
-                {
-                    Channel = channel,
-                    User = user,
-                    Text = e.ChatMessage.Message
-                };
-
-                context.Messages.Add(message);
-
-                context.SaveChanges();
-            }, token);
+            await context.Messages.AddAsync(message, token);
+            await context.SaveChangesAsync(token);
         }
         #endregion
 
         #region Channels
-        public Task TrackChannelAsync(string name, CancellationToken token)
+        public async Task TrackChannelAsync(string name, CancellationToken token)
         {
-            return Task.Run(() =>
+            using var context = new Context(Path);
+
+            var channel = context.Channels.Where(c => c.Name == name).FirstOrDefault();
+
+            if (channel == null)
             {
-                using var context = new Context(Path);
+                context.Channels.Add(new() { Name = name });
+            }
 
-                var channel = context.Channels.Where(c => c.Name == name).FirstOrDefault();
+            context.Channels.Where(c => c.Name == name).FirstOrDefault()!.Track = true;
 
-                if (channel == null)
-                {
-                    context.Channels.Add(new() { Name = name });
-                }
-
-                context.Channels.Where(c => c.Name == name).FirstOrDefault()!.Track = true;
-
-                context.SaveChanges();
-            }, token);
+            await context.SaveChangesAsync(token);
         }
 
-        public Task UntrackChannelAsync(string name, CancellationToken token)
+        public async Task UntrackChannelAsync(string name, CancellationToken token)
         {
-            return Task.Run(() =>
+            using var context = new Context(Path);
+
+            var channel = context.Channels.Where(c => c.Name == name).FirstOrDefault();
+
+            if (channel != null)
             {
-                using var context = new Context(Path);
+                channel.Track = false;
+            }
 
-                var channel = context.Channels.Where(c => c.Name == name).FirstOrDefault();
-
-                if (channel != null)
-                {
-                    channel.Track = false;
-                }
-
-                context.SaveChanges();
-            }, token);
+            await context.SaveChangesAsync(token);
         }
 
         public Task<IEnumerable<string>> GetTrackedChannelsAsync(CancellationToken token)

@@ -40,35 +40,41 @@ namespace TwitchLogger
                     {
                         var name = input.Split()[1].Trim();
 
-                        if (String.IsNullOrWhiteSpace(name)) throw new Exception("Channel name must be specified");
+                        if (String.IsNullOrWhiteSpace(name))
+                        {
+                            Console.WriteLine("Channel name must be specified");
+                            continue;
+                        }
 
                         await db.TrackChannelAsync(name, token);
                         chat.JoinChannel(name);
-
-                        continue;
                     }
 
                     if (!String.IsNullOrEmpty(input) && input.StartsWith("leave"))
                     {
                         var name = input.Split()[1].Trim();
 
-                        if (String.IsNullOrWhiteSpace(name)) throw new Exception("Channel name must be specified");
+                        if (String.IsNullOrWhiteSpace(name))
+                        {
+                            Console.WriteLine("Channel name must be specified");
+                            continue;
+                        }
 
                         await db.UntrackChannelAsync(name, token);
                         chat.LeaveChannel(name);
-
-                        continue;
                     }
 
                     if (!String.IsNullOrEmpty(input) && input.StartsWith("member"))
                     {
                         var name = input.Split()[1].Trim();
 
-                        if (String.IsNullOrWhiteSpace(name)) throw new Exception("User name must be specified");
+                        if (String.IsNullOrWhiteSpace(name))
+                        {
+                            Console.WriteLine("User name must be specified");
+                            continue;
+                        }
 
                         Console.WriteLine(String.Join(", ", await db.GetUserChannelsAsync(name, token)));
-
-                        continue;
                     }
 
                     if (input == "stop")
