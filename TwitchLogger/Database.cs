@@ -125,7 +125,7 @@ namespace TwitchLogger
             }, token);
         }
 
-        public Task<IEnumerable<string>> GetUsersMutualChannelsAsync(string first, string second, CancellationToken token)
+        public Task<IEnumerable<string>> GetUsersCommonChannelsAsync(string first, string second, CancellationToken token)
         {
             return Task.Run<IEnumerable<string>>(() =>
             {
